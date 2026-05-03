@@ -1,0 +1,149 @@
+<div class="page-container">
+
+  <!-- Filter bar -->
+  <div class="filter-bar mat-elevation-z2">
+    <div class="filter-bar__title">
+      <mat-icon>wb_sunny</mat-icon>
+      <span>Solar Harvest</span>
+    </div>
+
+    <div class="filter-bar__controls">
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>State</mat-label>
+        <mat-select [formControl]="stateCtrl">
+          <mat-option value="">All States</mat-option>
+          @for (state of states; track state) {
+            <mat-option [value]="state">{{ state }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>City</mat-label>
+        <mat-select [formControl]="cityCtrl">
+          <mat-option value="">All Cities</mat-option>
+          @for (city of cities; track city) {
+            <mat-option [value]="city">{{ city }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      @if (stateCtrl.value || cityCtrl.value) {
+        <button mat-icon-button (click)="clearFilters()" matTooltip="Clear filters">
+          <mat-icon>close</mat-icon>
+        </button>
+      }
+    </div>
+
+    <div class="filter-bar__count">
+      @if (!loading) {
+        <span>{{ totalResults | number }} locations</span>
+      }
+    </div>
+  </div>
+
+  <!-- Loading bar -->
+  <mat-progress-bar mode="indeterminate" [style.visibility]="loading ? 'visible' : 'hidden'"></mat-progress-bar>
+
+  <!-- Results table -->
+  <div class="table-wrapper mat-elevation-z1">
+    <table mat-table [dataSource]="locations">
+
+      <ng-container matColumnDef="rank">
+        <th mat-header-cell *matHeaderCellDef class="col-rank">#</th>
+        <td mat-cell *matCellDef="let row; let i = index" class="col-rank rank-cell">
+          {{ globalRank(i) }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="org">
+        <th mat-header-cell *matHeaderCellDef>Organization</th>
+        <td mat-cell *matCellDef="let row">
+          <div class="org-name">{{ nonprofitNames.get(row.ein) ?? '…' }}</div>
+          <div class="org-ein">EIN {{ row.ein }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="address">
+        <th mat-header-cell *matHeaderCellDef>Address</th>
+        <td mat-cell *matCellDef="let row">
+          @if (row.address.street) {
+            <div>{{ row.address.street }}</div>
+          } @else if (row.address.raw) {
+            <div class="address-raw">{{ row.address.raw }}</div>
+          }
+          <div class="address-city">
+            {{ row.address.city }}@if (row.address.city && row.address.state) {, }{{ row.address.state }}
+            @if (row.address.zip) { {{ row.address.zip }} }
+          </div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="source">
+        <th mat-header-cell *matHeaderCellDef>Source</th>
+        <td mat-cell *matCellDef="let row">
+          <mat-chip [class]="'source-chip source-chip--' + row.source">
+            {{ sourceLabel(row.source) }}
+          </mat-chip>
+          @if (row.confidence < 0.6) {
+            <span class="confidence-warn" matTooltip="Address extracted from text — not yet geocoded">
+              <mat-icon>warning_amber</mat-icon>
+            </span>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="score">
+        <th mat-header-cell *matHeaderCellDef>Solar Score</th>
+        <td mat-cell *matCellDef="let row">
+          @if (row.solarBenefitScore != null) {
+            <div class="score-badge" [class]="scoreColor(row.solarBenefitScore)">
+              {{ row.solarBenefitScore }}
+            </div>
+            @if (row.sunroof?.solarPotentialKwhYear) {
+              <div class="score-detail">
+                {{ row.sunroof.solarPotentialKwhYear | number:'1.0-0' }} kWh/yr
+              </div>
+            }
+          } @else {
+            <span class="score-pending" matTooltip="Solar API data not yet fetched">—</span>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="savings">
+        <th mat-header-cell *matHeaderCellDef>Est. Annual Savings</th>
+        <td mat-cell *matCellDef="let row" class="col-savings">
+          {{ formatSavings(row.estimatedAnnualSavings) }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let row">
+          <button mat-icon-button matTooltip="View details" disabled>
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns;" class="data-row"></tr>
+
+      <tr class="mat-row" *matNoDataRow>
+        <td [attr.colspan]="columns.length" class="empty-state">
+          @if (loading) { Loading… } @else { No locations found. Import IRS data to get started. }
+        </td>
+      </tr>
+    </table>
+
+    <mat-paginator
+      [length]="totalResults"
+      [pageSize]="pageSize"
+      [pageSizeOptions]="[10, 25, 50, 100]"
+      [pageIndex]="pageIndex"
+      (page)="onPageChange($event)"
+      showFirstLastButtons>
+    </mat-paginator>
+  </div>
+</div>
