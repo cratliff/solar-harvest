@@ -11,6 +11,8 @@ const nonprofitSchema = new mongoose.Schema({
   },
   lat: Number,
   lng: Number,
+  geocodeFailed: Boolean,
+
   nteeCode: String,
   revenue: Number,
   income: Number,
@@ -21,13 +23,18 @@ const nonprofitSchema = new mongoose.Schema({
   taxPeriod: String,        // YYYYMM of most recent 990
   irsStatus: String,        // IRS organization status
 
-  // Project Sunroof / Google Solar API data
+  // Google Solar API data
   sunroof: {
     solarPotentialKwhYear: Number,
-    roofSegmentCount: Number,
+    panelCount: Number,
     panelCapacityWatts: Number,
+    roofSegmentCount: Number,
+    roofAreaM2: Number,
     carbonOffsetFactorKgPerMwh: Number,
     percentCovered: Number,
+    maxSunshineHoursPerYear: Number,
+    imageryQuality: String,
+    noCoverage: Boolean,
     lastUpdated: Date,
   },
 
