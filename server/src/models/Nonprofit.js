@@ -35,6 +35,11 @@ const nonprofitSchema = new mongoose.Schema({
   solarBenefitScore: Number,
   estimatedAnnualSavings: Number,
 
+  // 990 enrichment data
+  propertyNetBookValue: Number,  // Schedule D total land/buildings book value
+  latestFilingYear: Number,
+  form990EnrichedAt: Date,
+
   // Source tracking
   irsImportId: { type: mongoose.Schema.Types.ObjectId, ref: 'DataImport' },
   irsLastUpdated: Date,

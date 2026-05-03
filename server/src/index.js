@@ -7,6 +7,7 @@ const scheduler = require('./services/schedulerService');
 const nonprofitRoutes = require('./routes/nonprofits');
 const solarRoutes = require('./routes/solar');
 const importRoutes = require('./routes/imports');
+const locationRoutes = require('./routes/locations');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +18,8 @@ app.use(express.json());
 app.use('/api/nonprofits', nonprofitRoutes);
 app.use('/api/solar', solarRoutes);
 app.use('/api/imports', importRoutes);
+app.use('/api/nonprofits', locationRoutes);
+app.use('/api/locations', locationRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
