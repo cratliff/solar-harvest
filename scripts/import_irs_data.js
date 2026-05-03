@@ -1,21 +1,29 @@
 #!/usr/bin/env node
 /**
- * Imports IRS Tax Exempt Organization bulk data into MongoDB.
- * Source: https://www.irs.gov/charities-non-profits/tax-exempt-organization-search-bulk-data-downloads
- * Downloads a CSV, geocodes addresses, and upserts into the nonprofits collection.
+ * CLI wrapper for one-off IRS EO BMF import.
+ * Usage: node scripts/import_irs_data.js [--force]
+ *
+ * --force  Import even if no new data is detected
  */
-require('dotenv').config({ path: '../server/.env' });
+require('dotenv').config({ path: `${__dirname}/../server/.env` });
 const mongoose = require('mongoose');
-const Nonprofit = require('../server/src/models/Nonprofit');
+const { runImport, checkAndImportIfNew } = require('../server/src/services/irsImportService');
+
+const force = process.argv.includes('--force');
 
 async function main() {
-  await mongoose.connect(process.env.MONGODB_URI);
-  console.log('Connected. Starting IRS data import...');
-  // TODO: download and parse IRS Publication 78 CSV
-  // TODO: geocode addresses via Google Maps Geocoding API
-  // TODO: bulk upsert into nonprofits collection
-  console.log('Import placeholder — implementation pending');
+  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/solar_harvest');
+  console.log('Connected to MongoDB');
+
+  const result = force
+    ? await runImport('manual')
+    : await checkAndImportIfNew();
+
+  console.log('Result:', JSON.stringify(result, null, 2));
   await mongoose.disconnect();
 }
 
-main().catch(err => { console.error(err); process.exit(1); });
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

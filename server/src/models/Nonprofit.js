@@ -11,12 +11,17 @@ const nonprofitSchema = new mongoose.Schema({
   },
   lat: Number,
   lng: Number,
-  nteeCode: String,        // National Taxonomy of Exempt Entities category
-  revenue: Number,         // Annual revenue from IRS 990
+  nteeCode: String,
+  revenue: Number,
+  income: Number,
   assets: Number,
-  subsection: String,      // IRS subsection code (501c3, etc.)
+  subsection: String,       // IRS subsection code (03 = 501c3, etc.)
+  deductibility: String,    // IRS deductibility code
+  foundation: String,       // IRS foundation code
+  taxPeriod: String,        // YYYYMM of most recent 990
+  irsStatus: String,        // IRS organization status
 
-  // Project Sunroof data
+  // Project Sunroof / Google Solar API data
   sunroof: {
     solarPotentialKwhYear: Number,
     roofSegmentCount: Number,
@@ -30,7 +35,12 @@ const nonprofitSchema = new mongoose.Schema({
   solarBenefitScore: Number,
   estimatedAnnualSavings: Number,
 
-  updatedAt: { type: Date, default: Date.now },
+  // Source tracking
+  irsImportId: { type: mongoose.Schema.Types.ObjectId, ref: 'DataImport' },
+  irsLastUpdated: Date,
 }, { timestamps: true });
+
+nonprofitSchema.index({ 'address.state': 1, solarBenefitScore: -1 });
+nonprofitSchema.index({ nteeCode: 1 });
 
 module.exports = mongoose.model('Nonprofit', nonprofitSchema);
