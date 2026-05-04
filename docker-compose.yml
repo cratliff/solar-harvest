@@ -1,0 +1,76 @@
+services:
+
+  # ── MongoDB ──────────────────────────────────────────────────────────────────
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: solar_harvest
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Mongo Express (DB browser at http://localhost:8081) ───────────────────────
+  mongo-express:
+    image: mongo-express:latest
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
+      ME_CONFIG_BASICAUTH: "false"
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  # ── Express API ───────────────────────────────────────────────────────────────
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Hot-reload: mount source only — node_modules stay in the image layer
+      - ./server/src:/app/src
+      - ./server/scripts:/app/scripts
+    environment:
+      PORT: 3000
+      MONGODB_URI: mongodb://mongo:27017/solar_harvest
+      NODE_ENV: development
+      # Set GOOGLE_SOLAR_API_KEY in a .env file at the repo root
+      GOOGLE_SOLAR_API_KEY: ${GOOGLE_SOLAR_API_KEY:-}
+      # Optional scheduler overrides
+      IRS_CHECK_CRON: ${IRS_CHECK_CRON:-0 2 * * *}
+      ENRICHMENT_CRON: ${ENRICHMENT_CRON:-0 */6 * * *}
+      INDEX_REFRESH_CRON: ${INDEX_REFRESH_CRON:-0 3 * * 0}
+      SOLAR_CRON: ${SOLAR_CRON:-0 */4 * * *}
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  # ── Angular Dev Server (at http://localhost:4200) ─────────────────────────────
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "4200:4200"
+    volumes:
+      # Hot-reload: mount source only — node_modules stay in the image layer
+      - ./client/src:/app/src
+    depends_on:
+      - server
+
+volumes:
+  mongo_data:
