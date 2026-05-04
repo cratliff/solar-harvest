@@ -49,10 +49,11 @@ async function enrich990(nonprofit) {
 
 async function runBatchEnrichment() {
   const cutoff = new Date(Date.now() - ENRICHMENT_TTL_DAYS * 86400 * 1000);
+  const state = (process.env.ENRICHMENT_STATE || '').trim().toUpperCase();
+  const stateFilter = state ? { 'address.state': state } : {};
 
-  // Prioritize nonprofits with significant assets (more likely to own buildings)
-  // that haven't been enriched yet or are past TTL
   const queue = await Nonprofit.find({
+    ...stateFilter,
     $and: [
       { $or: [{ form990EnrichedAt: { $exists: false } }, { form990EnrichedAt: { $lt: cutoff } }] },
       { assets: { $gt: 100000 } },

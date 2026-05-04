@@ -49,6 +49,8 @@ services:
       NODE_ENV: development
       # Set GOOGLE_SOLAR_API_KEY in a .env file at the repo root
       GOOGLE_SOLAR_API_KEY: ${GOOGLE_SOLAR_API_KEY:-}
+      # Restrict enrichment to a single state (2-letter code). Leave blank for all states.
+      ENRICHMENT_STATE: ${ENRICHMENT_STATE:-KY}
       # Optional scheduler overrides
       IRS_CHECK_CRON: ${IRS_CHECK_CRON:-0 2 * * *}
       ENRICHMENT_CRON: ${ENRICHMENT_CRON:-0 */6 * * *}

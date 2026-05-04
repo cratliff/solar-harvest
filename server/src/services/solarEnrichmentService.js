@@ -5,13 +5,20 @@ const { fetchBuildingInsights, computeSolarBenefitScore, COMMERCIAL_RATE_PER_KWH
 
 const SOLAR_TTL_DAYS = 180;
 const GEOCODE_BATCH = 100;
-const SOLAR_BATCH = 20;   // Solar API has a cost — keep batches small
+const SOLAR_BATCH = 20;
 const REQUEST_DELAY_MS = 200;
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function staleCutoff() {
   return new Date(Date.now() - SOLAR_TTL_DAYS * 86400 * 1000);
+}
+
+// Returns a state match condition for Nonprofit.address.state or NonprofitLocation.address.state.
+// Reads ENRICHMENT_STATE from env; if unset/empty, returns {} (no filter = all states).
+function stateFilter(field = 'address.state') {
+  const state = (process.env.ENRICHMENT_STATE || '').trim().toUpperCase();
+  return state ? { [field]: state } : {};
 }
 
 // ── Single-record enrichment ──────────────────────────────────────────────────
@@ -45,7 +52,6 @@ async function geocodeAndSaveNonprofit(nonprofit) {
 async function enrichLocationWithSolar(loc) {
   const sunroof = await fetchBuildingInsights(loc.lat, loc.lng);
   if (!sunroof) {
-    // No coverage — mark so we don't retry until TTL
     await NonprofitLocation.updateOne(
       { _id: loc._id },
       { $set: { 'sunroof.lastUpdated': new Date(), 'sunroof.noCoverage': true } }
@@ -53,7 +59,6 @@ async function enrichLocationWithSolar(loc) {
     return null;
   }
 
-  // Pull revenue from the parent Nonprofit for scoring
   const nonprofit = await Nonprofit.findOne({ ein: loc.ein }).select('revenue');
   const score = computeSolarBenefitScore(nonprofit || {}, sunroof);
 
@@ -99,7 +104,9 @@ async function enrichNonprofitWithSolar(nonprofit) {
 // ── Batch jobs ────────────────────────────────────────────────────────────────
 
 async function runGeocodeLocations() {
+  const sf = stateFilter('address.state');
   const docs = await NonprofitLocation.find({
+    ...sf,
     geocoded: { $ne: true },
     geocodeFailed: { $ne: true },
     $or: [{ 'address.street': { $exists: true, $ne: '' } }, { 'address.raw': { $exists: true, $ne: '' } }],
@@ -121,7 +128,9 @@ async function runGeocodeLocations() {
 }
 
 async function runGeocodeNonprofits() {
+  const sf = stateFilter('address.state');
   const docs = await Nonprofit.find({
+    ...sf,
     lat: { $exists: false },
     geocodeFailed: { $ne: true },
     'address.street': { $exists: true, $ne: '' },
@@ -144,7 +153,9 @@ async function runGeocodeNonprofits() {
 
 async function runSolarLocations() {
   const cutoff = staleCutoff();
+  const sf = stateFilter('address.state');
   const docs = await NonprofitLocation.find({
+    ...sf,
     geocoded: true,
     $or: [
       { 'sunroof.lastUpdated': { $exists: false } },
@@ -169,7 +180,9 @@ async function runSolarLocations() {
 
 async function runSolarNonprofits() {
   const cutoff = staleCutoff();
+  const sf = stateFilter('address.state');
   const docs = await Nonprofit.find({
+    ...sf,
     lat: { $exists: true },
     lng: { $exists: true },
     $or: [
@@ -193,22 +206,21 @@ async function runSolarNonprofits() {
   return { enriched, noData };
 }
 
-// Full batch cycle: geocode first, then solar
 async function runSolarBatch() {
+  const state = (process.env.ENRICHMENT_STATE || '').trim().toUpperCase() || 'all states';
+  console.log(`[Solar] Running batch for: ${state}`);
   const geo = await Promise.all([runGeocodeLocations(), runGeocodeNonprofits()]);
   await sleep(1000);
   const solar = await Promise.all([runSolarLocations(), runSolarNonprofits()]);
   return { geocoding: geo, solar };
 }
 
-// On-demand enrichment for a single EIN (all its locations + primary address)
 async function enrichEin(ein) {
   const nonprofit = await Nonprofit.findOne({ ein });
   if (!nonprofit) throw new Error(`Nonprofit ${ein} not found`);
 
   const results = { geocoded: 0, solar: 0, locations: [] };
 
-  // Primary address
   if (!nonprofit.lat) {
     const g = await geocodeAndSaveNonprofit(nonprofit);
     if (g) { results.geocoded++; nonprofit.lat = g.lat; nonprofit.lng = g.lng; }
@@ -218,7 +230,6 @@ async function enrichEin(ein) {
     if (score != null) results.solar++;
   }
 
-  // All NonprofitLocations
   const locs = await NonprofitLocation.find({ ein });
   for (const loc of locs) {
     if (!loc.geocoded) {
