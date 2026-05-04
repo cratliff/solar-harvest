@@ -5,9 +5,9 @@
  *
  * --force  Import even if no new data is detected
  */
-require('dotenv').config({ path: `${__dirname}/../server/.env` });
+require('dotenv').config(); // picks up .env in server/ when run outside Docker
 const mongoose = require('mongoose');
-const { runImport, checkAndImportIfNew } = require('../server/src/services/irsImportService');
+const { runImport, checkAndImportIfNew } = require('../src/services/irsImportService');
 
 const force = process.argv.includes('--force');
 
