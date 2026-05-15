@@ -41,9 +41,10 @@
       }
     </div>
 
-    <a mat-icon-button routerLink="/methodology" matTooltip="How scores are calculated">
-      <mat-icon>info_outline</mat-icon>
-    </a>
+    <nav class="header-nav">
+      <a mat-button routerLink="/about" routerLinkActive="nav-active">About</a>
+      <a mat-button routerLink="/methodology" routerLinkActive="nav-active">Methodology</a>
+    </nav>
   </div>
 
   <mat-progress-bar mode="indeterminate" [style.visibility]="loading ? 'visible' : 'hidden'"></mat-progress-bar>

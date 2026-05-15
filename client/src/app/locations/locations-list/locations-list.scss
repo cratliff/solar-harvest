@@ -46,6 +46,14 @@
   }
 }
 
+.header-nav {
+  display: flex;
+  gap: 4px;
+
+  a { font-size: 0.875rem; color: #616161; }
+  a.nav-active { color: #f57c00; font-weight: 600; }
+}
+
 .filter-field {
   width: 180px;
   margin-bottom: -1.25em;

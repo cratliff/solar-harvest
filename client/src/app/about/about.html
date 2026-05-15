@@ -1,0 +1,439 @@
+<div class="about-page">
+
+  <!-- Header -->
+  <div class="about-header mat-elevation-z2">
+    <a mat-icon-button routerLink="/" class="back-btn" aria-label="Back to list">
+      <mat-icon>arrow_back</mat-icon>
+    </a>
+    <mat-icon class="title-icon">wb_sunny</mat-icon>
+    <div>
+      <h1 class="title">About Solar Harvest</h1>
+      <p class="subtitle">Data sources, scoring methodology, and project overview</p>
+    </div>
+  </div>
+
+  <div class="about-body">
+
+    <!-- Mission -->
+    <mat-card class="card hero-card">
+      <mat-card-content>
+        <div class="hero-inner">
+          <div>
+            <h2 class="hero-title">What is Solar Harvest?</h2>
+            <p>
+              Solar Harvest is a free, open-source tool that ranks US nonprofits by their
+              potential to benefit from rooftop solar installations. It combines IRS financial
+              data, government solar irradiance models, and building footprint data to produce
+              a ranked list of the organizations where solar would generate the most electricity
+              <em>and</em> have the greatest financial impact.
+            </p>
+            <p>
+              The tool is designed for solar installers prospecting for commercial customers,
+              clean-energy advocates seeking grant targets, and nonprofits themselves evaluating
+              whether solar makes economic sense for their facilities.
+            </p>
+          </div>
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <span class="hero-stat-val">~1.95M</span>
+              <span class="hero-stat-label">Nonprofits indexed</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-val">100%</span>
+              <span class="hero-stat-label">Free government data</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-val">0</span>
+              <span class="hero-stat-label">Paid APIs required</span>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Pipeline -->
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="card-icon">account_tree</mat-icon>
+        <mat-card-title>How It Works</mat-card-title>
+        <mat-card-subtitle>Five-stage data pipeline from IRS records to solar score</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="pipeline">
+
+          <div class="pipeline-step">
+            <div class="step-icon step-1"><mat-icon>folder_open</mat-icon></div>
+            <div class="step-body">
+              <div class="step-title">1 — IRS Data Import</div>
+              <div class="step-desc">
+                The IRS publishes a monthly <strong>Business Master File (BMF)</strong> listing
+                every 501(c) organization in the country — roughly 1.95 million records. Solar
+                Harvest downloads and imports this file, capturing each org's name, EIN, primary
+                mailing address, NTEE sector code, total assets, and annual revenue.
+                IRS e-filed <strong>Form 990 XML</strong> returns are also parsed to discover
+                additional building addresses mentioned in Schedule O narratives.
+              </div>
+            </div>
+          </div>
+
+          <div class="pipeline-connector"></div>
+
+          <div class="pipeline-step">
+            <div class="step-icon step-2"><mat-icon>place</mat-icon></div>
+            <div class="step-body">
+              <div class="step-title">2 — Geocoding</div>
+              <div class="step-desc">
+                Each address is converted to a latitude/longitude coordinate using the
+                <strong>US Census Geocoder</strong> (free, no API key). Addresses that fail
+                Census geocoding fall back to Google Maps Geocoding if a key is configured.
+                Only geocoded addresses can receive a solar score.
+              </div>
+            </div>
+          </div>
+
+          <div class="pipeline-connector"></div>
+
+          <div class="pipeline-step">
+            <div class="step-icon step-3"><mat-icon>roofing</mat-icon></div>
+            <div class="step-body">
+              <div class="step-title">3 — Building Sizing via OpenStreetMap</div>
+              <div class="step-desc">
+                For each geocoded address, Solar Harvest queries the
+                <strong>OpenStreetMap Overpass API</strong> for building footprint polygons
+                within 60 m. The polygon area is computed via the Shoelace formula and
+                projected to square meters. System capacity is derived as:
+              </div>
+              <div class="formula-box">System kW = Footprint m² × 75% usable × 0.150 kW/m²</div>
+              <div class="step-desc">
+                The 75% factor accounts for HVAC equipment, roof edges, and shading.
+                If no footprint is found, a 100 kW default is used.
+                System capacity is clamped between 5 kW and 1,000 kW to guard against
+                polygon errors.
+              </div>
+            </div>
+          </div>
+
+          <div class="pipeline-connector"></div>
+
+          <div class="pipeline-step">
+            <div class="step-icon step-4"><mat-icon>solar_power</mat-icon></div>
+            <div class="step-body">
+              <div class="step-title">4 — Solar Output via NREL PVWatts</div>
+              <div class="step-desc">
+                Annual AC electricity production is estimated using the
+                <strong>NREL PVWatts v8 API</strong> — a free government model that computes
+                solar irradiance and system output for any US coordinate.
+                To stay within the 1,000 req/hour free tier, Solar Harvest pre-populates a
+                geographic grid of unit-capacity (1 kW) results at 0.1° resolution for each
+                state. Building-level output is then a simple local lookup:
+              </div>
+              <div class="formula-box">Annual kWh = Grid cell kWh/kW × System kW</div>
+              <div class="step-desc">
+                This means a single PVWatts call covers roughly every building within
+                ~7 km, making state-wide scoring practical within the free quota.
+              </div>
+            </div>
+          </div>
+
+          <div class="pipeline-connector"></div>
+
+          <div class="pipeline-step">
+            <div class="step-icon step-5"><mat-icon>star</mat-icon></div>
+            <div class="step-body">
+              <div class="step-title">5 — Scoring &amp; Rate Lookup</div>
+              <div class="step-desc">
+                Each building receives a <strong>Solar Score (0–100)</strong> and an
+                estimated annual savings figure. Electricity rates come from the
+                <strong>NREL Utility Rate Database (URDB)</strong> — a per-zip-code
+                commercial rate lookup — pre-cached in MongoDB. State EIA averages are
+                used as a fallback when URDB returns no usable flat rate.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Score formula -->
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="card-icon">star</mat-icon>
+        <mat-card-title>The Solar Score (0 – 100)</mat-card-title>
+        <mat-card-subtitle>A weighted composite of three factors</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <p>
+          Each building receives a Solar Score between 0 and 100. A higher score means a
+          solar installation would generate more energy <em>and</em> have a larger financial
+          impact relative to the organization's size.
+        </p>
+
+        <div class="formula-grid">
+          <div class="formula-item weight-high">
+            <div class="weight">50%</div>
+            <div class="factor-name">Solar Yield</div>
+            <div class="factor-desc">
+              How much electricity the roof can generate per year (kWh/yr ÷ 500,000 cap).
+              A 100 kW system in Kentucky produces roughly 120,000–145,000 kWh/yr.
+            </div>
+          </div>
+          <div class="formula-item weight-mid">
+            <div class="weight">35%</div>
+            <div class="factor-name">Financial Impact</div>
+            <div class="factor-desc">
+              Estimated annual savings as a share of 10% of reported revenue. Smaller orgs
+              score higher — a $15,000 savings matters more to a $200K food bank than to a
+              $50M hospital.
+            </div>
+          </div>
+          <div class="formula-item weight-low">
+            <div class="weight">15%</div>
+            <div class="factor-name">Roof Coverage</div>
+            <div class="factor-desc">
+              Fraction of the roof usable for panels. Defaults to 50% when roof geometry
+              data is unavailable (PVWatts-only path).
+            </div>
+          </div>
+        </div>
+
+        <mat-divider class="divider"></mat-divider>
+
+        <h3>Score Tiers</h3>
+        <div class="tier-row">
+          <span class="score-badge score-high">70+</span>
+          <div><strong>High</strong> — strong solar candidate; large roof yield and meaningful savings potential.</div>
+        </div>
+        <div class="tier-row">
+          <span class="score-badge score-mid">40–69</span>
+          <div><strong>Medium</strong> — worthwhile to evaluate; moderate yield or smaller revenue base.</div>
+        </div>
+        <div class="tier-row">
+          <span class="score-badge score-low">0–39</span>
+          <div><strong>Low</strong> — limited solar benefit relative to org size or location.</div>
+        </div>
+        <div class="tier-row">
+          <span class="score-badge score-none">—</span>
+          <div><strong>Not scored</strong> — address not yet geocoded or enrichment not yet run.</div>
+        </div>
+
+        <mat-divider class="divider"></mat-divider>
+
+        <h3>Estimated Annual Savings</h3>
+        <p>Savings are calculated per building as:</p>
+        <div class="formula-box">Est. Savings = Annual kWh × Local Rate ($/kWh)</div>
+        <p>
+          The figure represents gross energy-offset value only. It does <em>not</em> include
+          installation costs, federal Investment Tax Credit (ITC), state rebates, SREC revenue,
+          or net-metering credits.
+        </p>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- PVWatts assumptions -->
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="card-icon">tune</mat-icon>
+        <mat-card-title>PVWatts Modeling Assumptions</mat-card-title>
+        <mat-card-subtitle>Fixed parameters used in all solar output calculations</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <table class="params-table">
+          <tbody>
+            <tr><th>System capacity</th><td>Derived from OSM footprint</td><td>Falls back to 100 kW if no footprint found</td></tr>
+            <tr><th>Panel density</th><td>150 W/m²</td><td>Standard commercial monocrystalline layout</td></tr>
+            <tr><th>Usable roof fraction</th><td>75%</td><td>Accounts for HVAC, edges, shading</td></tr>
+            <tr><th>System cap</th><td>5 kW – 1,000 kW</td><td>Guards against OSM polygon errors</td></tr>
+            <tr><th>Module type</th><td>Premium (monocrystalline)</td><td>Higher efficiency than standard panels</td></tr>
+            <tr><th>Array type</th><td>Fixed open rack</td><td>Standard flat-roof commercial mount</td></tr>
+            <tr><th>Tilt</th><td>20°</td><td>Low-slope, common on flat commercial roofs</td></tr>
+            <tr><th>Azimuth</th><td>180° (due south)</td><td>Optimal orientation for Northern Hemisphere</td></tr>
+            <tr><th>System losses</th><td>14%</td><td>Wiring, soiling, shading, inverter, mismatch</td></tr>
+          </tbody>
+        </table>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Data sources -->
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="card-icon">source</mat-icon>
+        <mat-card-title>Data Sources</mat-card-title>
+        <mat-card-subtitle>All data is sourced from free, public government and open-data APIs</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="source-list">
+
+          <div class="source-item">
+            <div class="source-header">
+              <mat-icon class="source-icon">business</mat-icon>
+              <div class="source-name">IRS Exempt Organizations Business Master File (BMF)</div>
+            </div>
+            <div class="source-desc">
+              Primary list of ~1.95 million 501(c) organizations published monthly by the IRS.
+              Provides name, EIN, mailing address, NTEE sector code, total assets, and annual
+              revenue. Solar Harvest checks daily for new releases and re-imports automatically.
+            </div>
+            <div class="source-meta">irs.gov · Updated monthly · No API key required</div>
+          </div>
+          <mat-divider></mat-divider>
+
+          <div class="source-item">
+            <div class="source-header">
+              <mat-icon class="source-icon">description</mat-icon>
+              <div class="source-name">IRS Form 990 XML (via IRS S3 / ProPublica)</div>
+            </div>
+            <div class="source-desc">
+              E-filed 990 returns contain narrative descriptions of programs and facilities.
+              Solar Harvest parses Schedule O and Part III narratives to discover additional
+              building addresses beyond the primary IRS mailing address, giving a more complete
+              picture of each org's real-estate footprint.
+            </div>
+            <div class="source-meta">irs.gov S3 · Annual filings · No API key required</div>
+          </div>
+          <mat-divider></mat-divider>
+
+          <div class="source-item">
+            <div class="source-header">
+              <mat-icon class="source-icon">location_on</mat-icon>
+              <div class="source-name">US Census Bureau Geocoder</div>
+            </div>
+            <div class="source-desc">
+              Free REST API (geocoding.geo.census.gov) that converts street addresses to
+              latitude/longitude coordinates using the Census TIGER/Line database.
+              No API key is required. Google Maps Geocoding is used as a fallback when
+              a key is configured.
+            </div>
+            <div class="source-meta">census.gov · Free · No API key required</div>
+          </div>
+          <mat-divider></mat-divider>
+
+          <div class="source-item">
+            <div class="source-header">
+              <mat-icon class="source-icon">solar_power</mat-icon>
+              <div class="source-name">NREL PVWatts API v8</div>
+            </div>
+            <div class="source-desc">
+              National Renewable Energy Laboratory solar irradiance and production model.
+              Returns annual AC electricity output (kWh) for a photovoltaic system at any
+              US coordinate, accounting for local weather, panel tilt, azimuth, and system
+              losses. Free tier: up to 1,000 requests/hour.
+              Solar Harvest pre-computes a 0.1° geographic grid per state so that building-level
+              scoring consumes zero live API quota during normal operation.
+            </div>
+            <div class="source-meta">developer.nrel.gov · Free · NREL_API_KEY required</div>
+          </div>
+          <mat-divider></mat-divider>
+
+          <div class="source-item">
+            <div class="source-header">
+              <mat-icon class="source-icon">electric_bolt</mat-icon>
+              <div class="source-name">NREL Utility Rate Database (URDB)</div>
+            </div>
+            <div class="source-desc">
+              Free government database of commercial electricity rate structures for every US
+              zip code. Provides actual utility rates ($/kWh) per location rather than a flat
+              national average, enabling more accurate savings estimates.
+              URDB results are cached in MongoDB (90-day TTL). When URDB returns a complex
+              time-of-use structure without a clear flat rate, the system falls back to
+              EIA 2024 state commercial averages.
+            </div>
+            <div class="source-meta">openei.org · Free · NREL_API_KEY required</div>
+          </div>
+          <mat-divider></mat-divider>
+
+          <div class="source-item">
+            <div class="source-header">
+              <mat-icon class="source-icon">roofing</mat-icon>
+              <div class="source-name">OpenStreetMap (Overpass API)</div>
+            </div>
+            <div class="source-desc">
+              Free, community-maintained building footprint dataset. Used to determine the
+              actual roof area of each nonprofit building via polygon geometry (Shoelace formula,
+              equirectangular projection). Enables per-building system sizing rather than a
+              uniform 100 kW assumption. Coverage varies by region; rural buildings may not
+              have footprint data.
+            </div>
+            <div class="source-meta">openstreetmap.org · Free · No API key required</div>
+          </div>
+
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Limitations -->
+    <mat-card class="card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="card-icon">warning_amber</mat-icon>
+        <mat-card-title>Limitations &amp; Caveats</mat-card-title>
+        <mat-card-subtitle>What this tool does not account for</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="limitations">
+
+          <div class="limit-item">
+            <mat-icon class="limit-icon">attach_money</mat-icon>
+            <div>
+              <strong>Installation costs are not modeled.</strong>
+              The savings estimate is gross energy-offset value only. Actual ROI depends on
+              installed system cost (typically $1.50–$2.50/W commercial), available incentives
+              (federal 30% ITC, state rebates), and financing terms.
+            </div>
+          </div>
+
+          <div class="limit-item">
+            <mat-icon class="limit-icon">grid_off</mat-icon>
+            <div>
+              <strong>Net metering and grid export are not included.</strong>
+              In states with strong net-metering policies, actual financial value may be higher.
+              Demand-charge reduction — often the largest savings driver for commercial customers
+              — is also not modeled.
+            </div>
+          </div>
+
+          <div class="limit-item">
+            <mat-icon class="limit-icon">park</mat-icon>
+            <div>
+              <strong>Tree shading and local obstructions are not analyzed.</strong>
+              PVWatts uses a climate-based irradiance model, not a site-specific shading
+              analysis. Actual production can be meaningfully lower for buildings surrounded
+              by tall trees or adjacent structures.
+            </div>
+          </div>
+
+          <div class="limit-item">
+            <mat-icon class="limit-icon">engineering</mat-icon>
+            <div>
+              <strong>Structural suitability is not assessed.</strong>
+              Roof age, load capacity, and membrane condition determine whether a building can
+              physically support panels. A high Solar Score does not indicate a roof is ready
+              for installation.
+            </div>
+          </div>
+
+          <div class="limit-item">
+            <mat-icon class="limit-icon">map</mat-icon>
+            <div>
+              <strong>OSM building footprint coverage is incomplete in rural areas.</strong>
+              Buildings without an OSM footprint default to a 100 kW system, which may
+              over- or under-estimate the true roof area. Urban and suburban areas generally
+              have much better coverage.
+            </div>
+          </div>
+
+          <div class="limit-item">
+            <mat-icon class="limit-icon">business_center</mat-icon>
+            <div>
+              <strong>IRS mailing addresses may not reflect facility locations.</strong>
+              Many nonprofits file taxes from an accountant's or attorney's office. The 990
+              narrative parsing improves this, but some organizations may have buildings not
+              captured in any filing.
+            </div>
+          </div>
+
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+  </div>
+</div>
