@@ -70,28 +70,15 @@ table { width: 100%; }
 }
 
 .org-name { font-weight: 500; }
-.org-ein { font-size: 0.75rem; color: #9e9e9e; }
+.org-ein  { font-size: 0.75rem; color: #9e9e9e; }
 
-.address-raw { font-size: 0.8rem; color: #757575; font-style: italic; }
 .address-city { font-size: 0.8rem; color: #616161; }
 
-mat-chip.source-chip {
-  font-size: 0.7rem;
-  min-height: 22px;
-  padding: 0 8px;
-
-  &--irs_primary         { background: #e3f2fd; color: #1565c0; }
-  &--form_990_narrative  { background: #f3e5f5; color: #6a1b9a; }
-  &--form_990_scheduleO  { background: #ede7f6; color: #4527a0; }
-  &--county_assessor     { background: #e8f5e9; color: #2e7d32; }
-  &--google_places       { background: #fff8e1; color: #f57f17; }
-}
-
-.confidence-warn {
-  display: inline-flex;
-  align-items: center;
+.ntee-code {
+  display: inline-block;
   margin-left: 4px;
-  mat-icon { font-size: 14px; width: 14px; height: 14px; color: #ff8f00; }
+  font-size: 0.7rem;
+  color: #9e9e9e;
 }
 
 .score-badge {
@@ -104,14 +91,20 @@ mat-chip.source-chip {
   font-weight: 700;
   font-size: 0.9rem;
 
+  &--sm {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+
   &.score-high { background: #c8e6c9; color: #1b5e20; }
   &.score-mid  { background: #fff9c4; color: #f57f17; }
   &.score-low  { background: #ffcdd2; color: #b71c1c; }
   &.score-none { background: #eeeeee; color: #9e9e9e; }
 }
 
-.score-detail { font-size: 0.7rem; color: #757575; margin-top: 2px; }
-.score-pending { color: #bdbdbd; }
+.score-detail  { font-size: 0.7rem; color: #757575; margin-top: 2px; }
+.score-pending { color: #bdbdbd; font-size: 0.8rem; }
 
 .col-savings {
   font-variant-numeric: tabular-nums;
@@ -119,7 +112,83 @@ mat-chip.source-chip {
   color: #2e7d32;
 }
 
-.data-row:hover { background: #fafafa; }
+// ── Main table rows ─────────────────────��────────────────────���───────────────
+
+.data-row {
+  cursor: pointer;
+  &:hover { background: #fafafa; }
+  &.row-expanded { background: #fff8e1; }
+}
+
+.detail-row {
+  height: 0;
+  td { padding: 0; border-bottom: none; }
+}
+
+// ── Expanded building panel ──────────────────────────────────────────────────
+
+.detail-cell { padding: 0 !important; }
+
+.building-panel {
+  padding: 12px 24px 16px 64px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.building-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  color: #757575;
+  font-size: 0.875rem;
+}
+
+.building-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+
+  th {
+    text-align: left;
+    padding: 6px 12px 6px 0;
+    color: #757575;
+    font-weight: 500;
+    border-bottom: 1px solid #e0e0e0;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 8px 12px 8px 0;
+    vertical-align: middle;
+    border-bottom: 1px solid #f5f5f5;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  .col-number { text-align: right; padding-right: 16px; }
+}
+
+.building-address {
+  color: #424242;
+  max-width: 320px;
+}
+
+// Source badges
+.source-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+
+  &--irs_primary         { background: #e3f2fd; color: #1565c0; }
+  &--form_990_narrative  { background: #f3e5f5; color: #6a1b9a; }
+  &--form_990_scheduleO  { background: #ede7f6; color: #4527a0; }
+  &--county_assessor     { background: #e8f5e9; color: #2e7d32; }
+  &--google_places       { background: #fff8e1; color: #f57f17; }
+}
 
 .empty-state {
   padding: 48px;

@@ -10,9 +10,27 @@ export interface SunroofData {
   solarPotentialKwhYear?: number;
   roofSegmentCount?: number;
   panelCapacityWatts?: number;
+  roofAreaM2?: number;
   carbonOffsetFactorKgPerMwh?: number;
   percentCovered?: number;
+  noCoverage?: boolean;
   lastUpdated?: string;
+  ratePerKwh?: number;
+  rateSource?: 'urdb' | 'eia_state_avg' | 'default';
+}
+
+export interface BuildingLocation {
+  _id: string;
+  source: LocationSource;
+  sourceDetail?: { filingYear?: number; field?: string };
+  address: Address;
+  lat?: number;
+  lng?: number;
+  geocoded: boolean;
+  confidence: number;
+  sunroof?: SunroofData;
+  solarBenefitScore?: number;
+  estimatedAnnualSavings?: number;
 }
 
 export type LocationSource =
@@ -56,7 +74,15 @@ export interface Nonprofit {
   solarBenefitScore?: number;
   estimatedAnnualSavings?: number;
   propertyNetBookValue?: number;
+  sunroof?: SunroofData;
   form990EnrichedAt?: string;
+}
+
+export interface NonprofitsResponse {
+  results: Nonprofit[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export const NTEE_LABELS: Record<string, string> = {

@@ -1,7 +1,9 @@
 const Nonprofit = require('../models/Nonprofit');
 const NonprofitLocation = require('../models/NonprofitLocation');
 const { geocodeAddress } = require('./geocodingService');
-const { fetchBuildingInsights, computeSolarBenefitScore, COMMERCIAL_RATE_PER_KWH } = require('./solarService');
+const { fetchBuildingInsights, computeSolarBenefitScore, DEFAULT_SYSTEM_KW } = require('./solarService');
+const { fetchBuildingSystemKw } = require('./osmService');
+const { getRateForLocation } = require('./rateService');
 
 const SOLAR_TTL_DAYS = 180;
 const GEOCODE_BATCH = 100;
@@ -14,11 +16,14 @@ function staleCutoff() {
   return new Date(Date.now() - SOLAR_TTL_DAYS * 86400 * 1000);
 }
 
-// Returns a state match condition for Nonprofit.address.state or NonprofitLocation.address.state.
-// Reads ENRICHMENT_STATE from env; if unset/empty, returns {} (no filter = all states).
-function stateFilter(field = 'address.state') {
+// Returns a geo match condition scoped to ENRICHMENT_STATE + ENRICHMENT_CITY (both optional).
+function stateFilter(stateField = 'address.state', cityField = 'address.city') {
   const state = (process.env.ENRICHMENT_STATE || '').trim().toUpperCase();
-  return state ? { [field]: state } : {};
+  const city  = (process.env.ENRICHMENT_CITY  || '').trim();
+  const filter = {};
+  if (state) filter[stateField] = state;
+  if (city)  filter[cityField]  = new RegExp(`^${city}$`, 'i');
+  return filter;
 }
 
 // ── Single-record enrichment ──────────────────────────────────────────────────
@@ -50,7 +55,13 @@ async function geocodeAndSaveNonprofit(nonprofit) {
 }
 
 async function enrichLocationWithSolar(loc) {
-  const sunroof = await fetchBuildingInsights(loc.lat, loc.lng);
+  const [footprint, { rate, source: rateSource }] = await Promise.all([
+    fetchBuildingSystemKw(loc.lat, loc.lng),
+    getRateForLocation(loc.address?.zip, loc.address?.state),
+  ]);
+  const systemKw = footprint?.systemKw ?? DEFAULT_SYSTEM_KW;
+
+  const sunroof = await fetchBuildingInsights(loc.lat, loc.lng, systemKw);
   if (!sunroof) {
     await NonprofitLocation.updateOne(
       { _id: loc._id },
@@ -59,26 +70,41 @@ async function enrichLocationWithSolar(loc) {
     return null;
   }
 
+  const fullSunroof = {
+    ...sunroof,
+    roofAreaM2:  footprint?.roofAreaM2  ?? null,
+    ratePerKwh:  rate,
+    rateSource,
+  };
+
   const nonprofit = await Nonprofit.findOne({ ein: loc.ein }).select('revenue');
-  const score = computeSolarBenefitScore(nonprofit || {}, sunroof);
+  const score   = computeSolarBenefitScore(nonprofit || {}, fullSunroof, rate);
+  const savings = sunroof.solarPotentialKwhYear * rate;
 
   await NonprofitLocation.updateOne(
     { _id: loc._id },
-    {
-      $set: {
-        sunroof,
-        solarBenefitScore: score,
-        estimatedAnnualSavings: sunroof.solarPotentialKwhYear
-          ? sunroof.solarPotentialKwhYear * COMMERCIAL_RATE_PER_KWH
-          : null,
-      },
-    }
+    { $set: { sunroof: fullSunroof, solarBenefitScore: score, estimatedAnnualSavings: savings } }
   );
+
+  // Bubble best building score up to the parent Nonprofit for ranking
+  if (score != null) {
+    await Nonprofit.updateOne(
+      { ein: loc.ein, $or: [{ solarBenefitScore: { $lt: score } }, { solarBenefitScore: { $exists: false } }] },
+      { $set: { solarBenefitScore: score, estimatedAnnualSavings: savings } }
+    );
+  }
+
   return score;
 }
 
 async function enrichNonprofitWithSolar(nonprofit) {
-  const sunroof = await fetchBuildingInsights(nonprofit.lat, nonprofit.lng);
+  const [footprint, { rate, source: rateSource }] = await Promise.all([
+    fetchBuildingSystemKw(nonprofit.lat, nonprofit.lng),
+    getRateForLocation(nonprofit.address?.zip, nonprofit.address?.state),
+  ]);
+  const systemKw = footprint?.systemKw ?? DEFAULT_SYSTEM_KW;
+
+  const sunroof = await fetchBuildingInsights(nonprofit.lat, nonprofit.lng, systemKw);
   if (!sunroof) {
     await Nonprofit.updateOne(
       { _id: nonprofit._id },
@@ -87,16 +113,19 @@ async function enrichNonprofitWithSolar(nonprofit) {
     return null;
   }
 
-  const score = computeSolarBenefitScore(nonprofit, sunroof);
+  const fullSunroof = {
+    ...sunroof,
+    roofAreaM2:  footprint?.roofAreaM2  ?? null,
+    ratePerKwh:  rate,
+    rateSource,
+  };
+
+  const score   = computeSolarBenefitScore(nonprofit, fullSunroof, rate);
+  const savings = sunroof.solarPotentialKwhYear * rate;
+
   await Nonprofit.updateOne(
     { _id: nonprofit._id },
-    {
-      $set: {
-        sunroof,
-        solarBenefitScore: score,
-        estimatedAnnualSavings: sunroof.solarPotentialKwhYear * COMMERCIAL_RATE_PER_KWH,
-      },
-    }
+    { $set: { sunroof: fullSunroof, solarBenefitScore: score, estimatedAnnualSavings: savings } }
   );
   return score;
 }
@@ -162,7 +191,7 @@ async function runSolarLocations() {
       { 'sunroof.lastUpdated': { $lt: cutoff } },
     ],
     'sunroof.noCoverage': { $ne: true },
-  }).sort({ confidence: -1 }).limit(SOLAR_BATCH).select('_id ein lat lng');
+  }).sort({ confidence: -1 }).limit(SOLAR_BATCH).select('_id ein lat lng address');
 
   let enriched = 0, noData = 0;
   for (const loc of docs) {
@@ -190,7 +219,7 @@ async function runSolarNonprofits() {
       { 'sunroof.lastUpdated': { $lt: cutoff } },
     ],
     'sunroof.noCoverage': { $ne: true },
-  }).sort({ assets: -1 }).limit(SOLAR_BATCH).select('_id ein lat lng revenue');
+  }).sort({ assets: -1 }).limit(SOLAR_BATCH).select('_id ein lat lng revenue address');
 
   let enriched = 0, noData = 0;
   for (const np of docs) {
@@ -208,7 +237,8 @@ async function runSolarNonprofits() {
 
 async function runSolarBatch() {
   const state = (process.env.ENRICHMENT_STATE || '').trim().toUpperCase() || 'all states';
-  console.log(`[Solar] Running batch for: ${state}`);
+  const city  = (process.env.ENRICHMENT_CITY  || '').trim() || 'all cities';
+  console.log(`[Solar] Running batch for: ${state} / ${city}`);
   const geo = await Promise.all([runGeocodeLocations(), runGeocodeNonprofits()]);
   await sleep(1000);
   const solar = await Promise.all([runSolarLocations(), runSolarNonprofits()]);

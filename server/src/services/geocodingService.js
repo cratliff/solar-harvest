@@ -49,7 +49,7 @@ async function censusGeocode(addressStr) {
 
 // Returns { lat, lng, formattedAddress, source: 'google' } or null
 async function googleGeocode(addressStr) {
-  const key = process.env.GOOGLE_SOLAR_API_KEY;
+  const key = process.env.GOOGLE_MAPS_API_KEY;
   if (!key) return null;
 
   const url = `${GOOGLE_URL}?address=${encodeURIComponent(addressStr)}&key=${key}`;

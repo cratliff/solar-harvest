@@ -1,27 +1,27 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { ApiService } from '../../services/api.service';
-import { Location, SOURCE_LABELS, LocationSource } from '../../models/location.model';
+import { BuildingLocation, Nonprofit, NTEE_LABELS, SOURCE_LABELS } from '../../models/location.model';
 
 @Component({
   selector: 'app-locations-list',
   standalone: true,
   imports: [
-    CommonModule, ReactiveFormsModule,
+    CommonModule, RouterLink, ReactiveFormsModule,
     MatSelectModule, MatFormFieldModule, MatTableModule, MatPaginatorModule,
-    MatProgressBarModule, MatChipsModule, MatIconModule, MatButtonModule,
-    MatTooltipModule,
+    MatProgressBarModule, MatProgressSpinnerModule, MatIconModule, MatButtonModule, MatTooltipModule,
   ],
   templateUrl: './locations-list.html',
   styleUrl: './locations-list.scss',
@@ -30,19 +30,22 @@ export class LocationsListComponent implements OnInit {
   private api = inject(ApiService);
 
   stateCtrl = new FormControl<string>('');
-  cityCtrl = new FormControl<string>({ value: '', disabled: true });
+  cityCtrl  = new FormControl<string>({ value: '', disabled: true });
 
   states: string[] = [];
   cities: string[] = [];
-  locations: Location[] = [];
-  nonprofitNames = new Map<string, string>();
+  nonprofits: Nonprofit[] = [];
 
   totalResults = 0;
-  pageSize = 25;
-  pageIndex = 0;
-  loading = false;
+  pageSize     = 25;
+  pageIndex    = 0;
+  loading      = false;
 
-  readonly columns = ['rank', 'org', 'address', 'source', 'score', 'savings', 'actions'];
+  expandedEin: string | null = null;
+  buildingsByEin: Record<string, BuildingLocation[]> = {};
+  loadingBuildings: Record<string, boolean> = {};
+
+  readonly columns = ['rank', 'name', 'address', 'ntee', 'assets', 'score', 'savings'];
   readonly sourceLabels = SOURCE_LABELS;
 
   ngOnInit() {
@@ -58,41 +61,38 @@ export class LocationsListComponent implements OnInit {
       } else {
         this.cityCtrl.disable();
       }
-      this.loadLocations();
+      this.load();
     });
 
-    this.cityCtrl.valueChanges.pipe(debounceTime(200), distinctUntilChanged()).subscribe(() => {
-      this.pageIndex = 0;
-      this.loadLocations();
-    });
+    this.cityCtrl.valueChanges
+      .pipe(debounceTime(200), distinctUntilChanged())
+      .subscribe(() => { this.pageIndex = 0; this.load(); });
 
-    this.loadLocations();
+    this.load();
   }
 
-  loadLocations() {
+  load() {
     this.loading = true;
-    this.api
-      .getLocations({
-        state: this.stateCtrl.value || undefined,
-        city: this.cityCtrl.value || undefined,
-        page: this.pageIndex + 1,
-        limit: this.pageSize,
-      })
-      .subscribe({
-        next: res => {
-          this.locations = res.results;
-          this.totalResults = res.total;
-          this.loading = false;
-          this.prefetchNonprofitNames(res.results);
-        },
-        error: () => (this.loading = false),
-      });
+    this.expandedEin = null;
+    this.api.getNonprofits({
+      state: this.stateCtrl.value || undefined,
+      city:  this.cityCtrl.value  || undefined,
+      page:  this.pageIndex + 1,
+      limit: this.pageSize,
+    }).subscribe({
+      next: res => {
+        this.nonprofits   = res.results;
+        this.totalResults = res.total;
+        this.loading      = false;
+      },
+      error: () => (this.loading = false),
+    });
   }
 
   onPageChange(e: PageEvent) {
     this.pageIndex = e.pageIndex;
-    this.pageSize = e.pageSize;
-    this.loadLocations();
+    this.pageSize  = e.pageSize;
+    this.load();
   }
 
   clearFilters() {
@@ -101,32 +101,61 @@ export class LocationsListComponent implements OnInit {
     this.pageIndex = 0;
   }
 
-  private prefetchNonprofitNames(locs: Location[]) {
-    const unique = [...new Set(locs.filter(l => !this.nonprofitNames.has(l.ein)).map(l => l.ein))];
-    unique.forEach(ein => {
-      this.api.getNonprofit(ein).subscribe(np => {
-        if (np?.name) this.nonprofitNames.set(ein, np.name);
+  toggleBuildings(ein: string) {
+    if (this.expandedEin === ein) {
+      this.expandedEin = null;
+      return;
+    }
+    this.expandedEin = ein;
+    if (!this.buildingsByEin[ein]) {
+      this.loadingBuildings[ein] = true;
+      this.api.getNonprofitLocations(ein).subscribe({
+        next: locs => {
+          this.buildingsByEin[ein] = locs;
+          this.loadingBuildings[ein] = false;
+        },
+        error: () => { this.loadingBuildings[ein] = false; },
       });
-    });
+    }
   }
 
-  globalRank(localIndex: number): number {
-    return this.pageIndex * this.pageSize + localIndex + 1;
+  globalRank(i: number): number {
+    return this.pageIndex * this.pageSize + i + 1;
   }
 
-  scoreColor(score: number | undefined): string {
+  nteeLabel(code: string | undefined): string {
+    if (!code) return '—';
+    const letter = code.charAt(0).toUpperCase();
+    return NTEE_LABELS[letter] ?? code;
+  }
+
+  sourceLabel(source: string): string {
+    return SOURCE_LABELS[source as keyof typeof SOURCE_LABELS] ?? source;
+  }
+
+  scoreColor(score: number | null | undefined): string {
     if (score == null) return 'score-none';
     if (score >= 75) return 'score-high';
     if (score >= 40) return 'score-mid';
     return 'score-low';
   }
 
-  formatSavings(val: number | undefined): string {
-    if (!val) return '—';
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+  formatCurrency(val: number | null | undefined): string {
+    if (val == null || !isFinite(val)) return '—';
+    if (val >= 1_000_000) return '$' + (val / 1_000_000).toFixed(1) + 'M';
+    if (val >= 1_000)     return '$' + (val / 1_000).toFixed(0) + 'K';
+    return '$' + val.toFixed(0);
   }
 
-  sourceLabel(src: LocationSource): string {
-    return SOURCE_LABELS[src] ?? src;
+  formatKwh(val: number | null | undefined): string {
+    if (val == null || !isFinite(val)) return '—';
+    return val.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  }
+
+  buildingAddress(b: BuildingLocation): string {
+    const a = b.address;
+    if (!a) return '—';
+    const parts = [a.street, [a.city, a.state].filter(Boolean).join(', ')].filter(Boolean);
+    return parts.join(' · ') || a.raw || '—';
   }
 }

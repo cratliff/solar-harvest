@@ -36,6 +36,9 @@ const nonprofitSchema = new mongoose.Schema({
     imageryQuality: String,
     noCoverage: Boolean,
     lastUpdated: Date,
+    // Accuracy metadata
+    ratePerKwh: Number,   // actual $/kWh used (from URDB or EIA state avg)
+    rateSource: String,   // 'urdb' | 'eia_state_avg' | 'default'
   },
 
   // Derived scoring

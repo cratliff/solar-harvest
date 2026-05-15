@@ -47,10 +47,13 @@ services:
       PORT: 3000
       MONGODB_URI: mongodb://mongo:27017/solar_harvest
       NODE_ENV: development
-      # Set GOOGLE_SOLAR_API_KEY in a .env file at the repo root
-      GOOGLE_SOLAR_API_KEY: ${GOOGLE_SOLAR_API_KEY:-}
-      # Restrict enrichment to a single state (2-letter code). Leave blank for all states.
+      # Get a free key at https://developer.nrel.gov/signup/ — falls back to DEMO_KEY (50 req/day)
+      NREL_API_KEY: ${NREL_API_KEY:-DEMO_KEY}
+      # Optional Google Maps Geocoding fallback (Census geocoder is used when unset)
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      # Restrict enrichment to a state + optional city. Leave blank for all states/cities.
       ENRICHMENT_STATE: ${ENRICHMENT_STATE:-KY}
+      ENRICHMENT_CITY: ${ENRICHMENT_CITY:-LEXINGTON}
       # Optional scheduler overrides
       IRS_CHECK_CRON: ${IRS_CHECK_CRON:-0 2 * * *}
       ENRICHMENT_CRON: ${ENRICHMENT_CRON:-0 */6 * * *}

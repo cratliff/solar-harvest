@@ -37,102 +37,180 @@
 
     <div class="filter-bar__count">
       @if (!loading) {
-        <span>{{ totalResults | number }} locations</span>
+        <span>{{ totalResults | number }} nonprofits</span>
       }
     </div>
+
+    <a mat-icon-button routerLink="/methodology" matTooltip="How scores are calculated">
+      <mat-icon>info_outline</mat-icon>
+    </a>
   </div>
 
-  <!-- Loading bar -->
   <mat-progress-bar mode="indeterminate" [style.visibility]="loading ? 'visible' : 'hidden'"></mat-progress-bar>
 
-  <!-- Results table -->
   <div class="table-wrapper mat-elevation-z1">
-    <table mat-table [dataSource]="locations">
+    <table mat-table [dataSource]="nonprofits" multiTemplateDataRows>
 
+      <!-- Rank -->
       <ng-container matColumnDef="rank">
         <th mat-header-cell *matHeaderCellDef class="col-rank">#</th>
-        <td mat-cell *matCellDef="let row; let i = index" class="col-rank rank-cell">
+        <td mat-cell *matCellDef="let row; let i = dataIndex" class="col-rank rank-cell">
           {{ globalRank(i) }}
         </td>
       </ng-container>
 
-      <ng-container matColumnDef="org">
+      <!-- Name -->
+      <ng-container matColumnDef="name">
         <th mat-header-cell *matHeaderCellDef>Organization</th>
         <td mat-cell *matCellDef="let row">
-          <div class="org-name">{{ nonprofitNames.get(row.ein) ?? '…' }}</div>
+          <div class="org-name">{{ row.name }}</div>
           <div class="org-ein">EIN {{ row.ein }}</div>
         </td>
       </ng-container>
 
+      <!-- Address -->
       <ng-container matColumnDef="address">
         <th mat-header-cell *matHeaderCellDef>Address</th>
         <td mat-cell *matCellDef="let row">
-          @if (row.address.street) {
+          @if (row.address?.street) {
             <div>{{ row.address.street }}</div>
-          } @else if (row.address.raw) {
-            <div class="address-raw">{{ row.address.raw }}</div>
           }
           <div class="address-city">
-            {{ row.address.city }}@if (row.address.city && row.address.state) {, }{{ row.address.state }}
-            @if (row.address.zip) { {{ row.address.zip }} }
+            {{ row.address?.city }}@if (row.address?.city && row.address?.state) {, }{{ row.address?.state }}
+            @if (row.address?.zip) { {{ row.address.zip }} }
           </div>
         </td>
       </ng-container>
 
-      <ng-container matColumnDef="source">
-        <th mat-header-cell *matHeaderCellDef>Source</th>
+      <!-- NTEE Category -->
+      <ng-container matColumnDef="ntee">
+        <th mat-header-cell *matHeaderCellDef>Category</th>
         <td mat-cell *matCellDef="let row">
-          <mat-chip [class]="'source-chip source-chip--' + row.source">
-            {{ sourceLabel(row.source) }}
-          </mat-chip>
-          @if (row.confidence < 0.6) {
-            <span class="confidence-warn" matTooltip="Address extracted from text — not yet geocoded">
-              <mat-icon>warning_amber</mat-icon>
-            </span>
+          <span class="ntee-label">{{ nteeLabel(row.nteeCode) }}</span>
+          @if (row.nteeCode) {
+            <span class="ntee-code">{{ row.nteeCode }}</span>
           }
         </td>
       </ng-container>
 
+      <!-- Assets -->
+      <ng-container matColumnDef="assets">
+        <th mat-header-cell *matHeaderCellDef>Assets</th>
+        <td mat-cell *matCellDef="let row" class="col-number">
+          {{ formatCurrency(row.assets) }}
+        </td>
+      </ng-container>
+
+      <!-- Solar Score -->
       <ng-container matColumnDef="score">
         <th mat-header-cell *matHeaderCellDef>Solar Score</th>
         <td mat-cell *matCellDef="let row">
           @if (row.solarBenefitScore != null) {
-            <div class="score-badge" [class]="scoreColor(row.solarBenefitScore)">
+            <div class="score-badge" [ngClass]="scoreColor(row.solarBenefitScore)">
               {{ row.solarBenefitScore }}
             </div>
             @if (row.sunroof?.solarPotentialKwhYear) {
-              <div class="score-detail">
-                {{ row.sunroof.solarPotentialKwhYear | number:'1.0-0' }} kWh/yr
-              </div>
+              <div class="score-detail">{{ formatKwh(row.sunroof?.solarPotentialKwhYear) }} kWh/yr</div>
             }
           } @else {
-            <span class="score-pending" matTooltip="Solar API data not yet fetched">—</span>
+            <span class="score-pending" matTooltip="Run solar enrichment to score this org">—</span>
           }
         </td>
       </ng-container>
 
+      <!-- Est. Annual Savings -->
       <ng-container matColumnDef="savings">
         <th mat-header-cell *matHeaderCellDef>Est. Annual Savings</th>
-        <td mat-cell *matCellDef="let row" class="col-savings">
-          {{ formatSavings(row.estimatedAnnualSavings) }}
+        <td mat-cell *matCellDef="let row" class="col-number col-savings">
+          {{ formatCurrency(row.estimatedAnnualSavings) }}
         </td>
       </ng-container>
 
-      <ng-container matColumnDef="actions">
-        <th mat-header-cell *matHeaderCellDef></th>
-        <td mat-cell *matCellDef="let row">
-          <button mat-icon-button matTooltip="View details" disabled>
-            <mat-icon>chevron_right</mat-icon>
-          </button>
+      <!-- Expandable detail row — spans all columns -->
+      <ng-container matColumnDef="expandedDetail">
+        <td mat-cell *matCellDef="let row" [attr.colspan]="columns.length" class="detail-cell">
+          @if (expandedEin === row.ein) {
+            <div class="building-panel">
+              @if (loadingBuildings[row.ein]) {
+                <div class="building-loading">
+                  <mat-spinner diameter="24"></mat-spinner>
+                  <span>Loading buildings…</span>
+                </div>
+              } @else if (buildingsByEin[row.ein]) {
+                <table class="building-table">
+                  <thead>
+                    <tr>
+                      <th>Source</th>
+                      <th>Address</th>
+                      <th class="col-number">Score</th>
+                      <th class="col-number">System</th>
+                      <th class="col-number">kWh/yr</th>
+                      <th class="col-number">Rate</th>
+                      <th class="col-number">Est. Savings</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (b of buildingsByEin[row.ein]; track b._id) {
+                      <tr>
+                        <td>
+                          <span class="source-badge source-badge--{{ b.source }}">
+                            {{ sourceLabel(b.source) }}
+                          </span>
+                        </td>
+                        <td class="building-address">{{ buildingAddress(b) }}</td>
+                        <td class="col-number">
+                          @if (b.solarBenefitScore != null) {
+                            <span class="score-badge score-badge--sm" [ngClass]="scoreColor(b.solarBenefitScore)">
+                              {{ b.solarBenefitScore }}
+                            </span>
+                          } @else if (!b.geocoded) {
+                            <span class="score-pending" matTooltip="Address not yet geocoded">not geocoded</span>
+                          } @else if (b.sunroof?.noCoverage) {
+                            <span class="score-pending">no data</span>
+                          } @else {
+                            <span class="score-pending">pending</span>
+                          }
+                        </td>
+                        <td class="col-number">
+                          @if (b.sunroof?.panelCapacityWatts) {
+                            {{ (b.sunroof!.panelCapacityWatts! / 1000) | number:'1.0-0' }} kW
+                            @if (b.sunroof?.roofAreaM2) {
+                              <div class="score-detail">{{ b.sunroof!.roofAreaM2! | number:'1.0-0' }} m²</div>
+                            }
+                          } @else { — }
+                        </td>
+                        <td class="col-number">
+                          {{ formatKwh(b.sunroof?.solarPotentialKwhYear) }}
+                        </td>
+                        <td class="col-number">
+                          @if (b.sunroof?.ratePerKwh) {
+                            <span [matTooltip]="b.sunroof!.rateSource ?? ''">
+                              ${{ (b.sunroof!.ratePerKwh! * 100) | number:'1.1-1' }}¢
+                            </span>
+                          } @else { — }
+                        </td>
+                        <td class="col-number col-savings">
+                          {{ formatCurrency(b.estimatedAnnualSavings) }}
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          }
         </td>
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
-      <tr mat-row *matRowDef="let row; columns: columns;" class="data-row"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns;" class="data-row"
+          [class.row-expanded]="expandedEin === row.ein"
+          (click)="toggleBuildings(row.ein)"></tr>
+      <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="detail-row"></tr>
 
       <tr class="mat-row" *matNoDataRow>
         <td [attr.colspan]="columns.length" class="empty-state">
-          @if (loading) { Loading… } @else { No locations found. Import IRS data to get started. }
+          @if (loading) { Loading… } @else { No nonprofits found. }
         </td>
       </tr>
     </table>
@@ -140,7 +218,7 @@
     <mat-paginator
       [length]="totalResults"
       [pageSize]="pageSize"
-      [pageSizeOptions]="[10, 25, 50, 100]"
+      [pageSizeOptions]="[25, 50, 100]"
       [pageIndex]="pageIndex"
       (page)="onPageChange($event)"
       showFirstLastButtons>

@@ -37,6 +37,9 @@ const nonprofitLocationSchema = new mongoose.Schema({
     imageryQuality: String,
     noCoverage: Boolean,
     lastUpdated: Date,
+    // Accuracy metadata
+    ratePerKwh: Number,
+    rateSource: String,
   },
   solarBenefitScore: Number,
   estimatedAnnualSavings: Number,
