@@ -71,6 +71,11 @@ table { width: 100%; }
 
 .org-name { font-weight: 500; }
 .org-ein  { font-size: 0.75rem; color: #9e9e9e; }
+.org-link {
+  color: inherit;
+  text-decoration: none;
+  &:hover { color: #1565c0; text-decoration: underline; }
+}
 
 .address-city { font-size: 0.8rem; color: #616161; }
 

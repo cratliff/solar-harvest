@@ -63,7 +63,7 @@
       <ng-container matColumnDef="name">
         <th mat-header-cell *matHeaderCellDef>Organization</th>
         <td mat-cell *matCellDef="let row">
-          <div class="org-name">{{ row.name }}</div>
+          <a class="org-name org-link" [routerLink]="['/nonprofit', row.ein]" (click)="$event.stopPropagation()">{{ row.name }}</a>
           <div class="org-ein">EIN {{ row.ein }}</div>
         </td>
       </ng-container>

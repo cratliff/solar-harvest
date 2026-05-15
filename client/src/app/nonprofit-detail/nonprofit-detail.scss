@@ -1,0 +1,255 @@
+.detail-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+}
+
+// ── Header ──────────────────────────────────────────────────────────────────
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #1a237e;
+  color: #fff;
+  border-radius: 0 0 8px 8px;
+  margin-bottom: 24px;
+}
+
+.back-btn {
+  color: rgba(255,255,255,0.8);
+  flex-shrink: 0;
+  &:hover { color: #fff; }
+}
+
+.header-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.org-name {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0 0 6px;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.meta-chip {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.9);
+
+  &.ein { font-family: monospace; }
+}
+
+.header-score {
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.score-ring {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border: 4px solid rgba(255,255,255,0.3);
+
+  &.score--high { background: #2e7d32; border-color: #81c784; }
+  &.score--mid  { background: #e65100; border-color: #ffb74d; }
+  &.score--low  { background: #b71c1c; border-color: #e57373; }
+}
+
+.score-label {
+  font-size: 0.7rem;
+  margin-top: 4px;
+  color: rgba(255,255,255,0.7);
+}
+
+// ── Stats row ──────────────────────────────────────────────────────────────
+.stats-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  flex: 1;
+  min-width: 120px;
+
+  mat-card-content {
+    padding: 16px !important;
+    text-align: center;
+  }
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #37474f;
+
+  &.accent { color: #2e7d32; }
+}
+
+.stat-label {
+  font-size: 0.72rem;
+  color: #78909c;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+// ── Section cards ──────────────────────────────────────────────────────────
+.section-card {
+  margin-bottom: 20px;
+
+  mat-card-header { padding-bottom: 0; }
+
+  mat-card-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 1rem;
+
+    mat-icon { font-size: 1.1rem; height: 1.1rem; width: 1.1rem; }
+  }
+}
+
+.loading-msg, .empty-msg {
+  color: #90a4ae;
+  font-style: italic;
+  padding: 16px 0;
+}
+
+// ── Buildings table ────────────────────────────────────────────────────────
+.table-scroll {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.building-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+
+  th {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 2px solid #e0e0e0;
+    color: #546e7a;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 10px 10px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr.row-primary td { background: #f5f9ff; }
+  tr:hover td { background: #fafafa; }
+
+  .col-num {
+    text-align: right;
+    white-space: nowrap;
+  }
+}
+
+.addr-cell { max-width: 260px; }
+
+.sub-note {
+  font-size: 0.72rem;
+  color: #90a4ae;
+  margin-top: 2px;
+  &.warn { color: #ef6c00; }
+}
+
+.source-badge {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+  font-weight: 500;
+
+  &--irs_primary       { background: #e3f2fd; color: #1565c0; }
+  &--form_990_narrative { background: #f3e5f5; color: #6a1b9a; }
+  &--form_990_scheduleO { background: #ede7f6; color: #4527a0; }
+  &--county_assessor   { background: #e8f5e9; color: #2e7d32; }
+  &--google_places     { background: #fff3e0; color: #e65100; }
+}
+
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+
+  &.score--high { background: #2e7d32; }
+  &.score--mid  { background: #ef6c00; }
+  &.score--low  { background: #c62828; }
+}
+
+.muted { color: #b0bec5; }
+
+.savings-cell { font-weight: 600; color: #2e7d32; }
+
+// ── Org details ───────────────────────────────────────────────────────────
+.details-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 8px;
+}
+
+.detail-row {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 0.875rem;
+
+  &:last-child { border-bottom: none; }
+}
+
+.detail-key {
+  width: 180px;
+  flex-shrink: 0;
+  color: #78909c;
+  font-weight: 500;
+}
+
+.detail-val { color: #37474f; }
+
+// ── Not found ──────────────────────────────────────────────────────────────
+.not-found {
+  text-align: center;
+  padding: 80px 20px;
+  color: #90a4ae;
+
+  mat-icon { font-size: 3rem; height: 3rem; width: 3rem; margin-bottom: 12px; }
+  p { font-size: 1.1rem; margin-bottom: 16px; }
+}

@@ -71,9 +71,14 @@ export interface Nonprofit {
   revenue?: number;
   assets?: number;
   subsection?: string;
+  deductibility?: string;
+  foundation?: string;
+  taxPeriod?: string;
+  irsStatus?: string;
   solarBenefitScore?: number;
   estimatedAnnualSavings?: number;
   propertyNetBookValue?: number;
+  latestFilingYear?: number;
   sunroof?: SunroofData;
   form990EnrichedAt?: string;
 }

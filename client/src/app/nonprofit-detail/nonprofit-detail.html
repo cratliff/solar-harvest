@@ -1,0 +1,222 @@
+<div class="detail-page">
+
+  <mat-progress-bar mode="indeterminate" [style.visibility]="(loadingOrg || loadingLocs) ? 'visible' : 'hidden'"></mat-progress-bar>
+
+  @if (notFound) {
+    <div class="not-found">
+      <mat-icon>search_off</mat-icon>
+      <p>Organization not found.</p>
+      <a mat-button routerLink="/">← Back to list</a>
+    </div>
+  }
+
+  @if (!loadingOrg && nonprofit) {
+    <!-- Header -->
+    <div class="detail-header mat-elevation-z2">
+      <a mat-icon-button routerLink="/" class="back-btn" matTooltip="Back to list">
+        <mat-icon>arrow_back</mat-icon>
+      </a>
+
+      <div class="header-body">
+        <h1 class="org-name">{{ nonprofit.name }}</h1>
+        <div class="header-meta">
+          <span class="meta-chip ein">EIN {{ nonprofit.ein }}</span>
+          @if (nonprofit.nteeCode) {
+            <span class="meta-chip ntee">{{ nteeLabel(nonprofit.nteeCode) }} &middot; {{ nonprofit.nteeCode }}</span>
+          }
+          @if (nonprofit.subsection) {
+            <span class="meta-chip sub">{{ subsectionLabel(nonprofit.subsection) }}</span>
+          }
+        </div>
+      </div>
+
+      @if (nonprofit.solarBenefitScore != null) {
+        <div class="header-score">
+          <div class="score-ring" [ngClass]="scoreColor(nonprofit.solarBenefitScore)">
+            {{ nonprofit.solarBenefitScore }}
+          </div>
+          <div class="score-label">Solar Score</div>
+        </div>
+      }
+    </div>
+
+    <!-- Stats row -->
+    <div class="stats-row">
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-value accent">{{ formatCurrency(nonprofit.estimatedAnnualSavings || totalSavings) }}</div>
+          <div class="stat-label">Est. Annual Savings</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-value">{{ formatKwh(nonprofit.sunroof?.solarPotentialKwhYear || totalKwhYear) }} kWh</div>
+          <div class="stat-label">Annual Solar Yield</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-value">{{ formatCurrency(nonprofit.assets) }}</div>
+          <div class="stat-label">Total Assets</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-value">{{ formatCurrency(nonprofit.revenue) }}</div>
+          <div class="stat-label">Annual Revenue</div>
+        </mat-card-content>
+      </mat-card>
+
+      @if (nonprofit.propertyNetBookValue) {
+        <mat-card class="stat-card">
+          <mat-card-content>
+            <div class="stat-value">{{ formatCurrency(nonprofit.propertyNetBookValue) }}</div>
+            <div class="stat-label">Property Book Value</div>
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+
+    <!-- Buildings table -->
+    <mat-card class="section-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>location_on</mat-icon>
+          Buildings &amp; Solar Data
+        </mat-card-title>
+        <mat-card-subtitle>
+          {{ locations.length }} location{{ locations.length !== 1 ? 's' : '' }} found
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        @if (loadingLocs) {
+          <p class="loading-msg">Loading buildings…</p>
+        } @else if (locations.length === 0) {
+          <p class="empty-msg">No building locations found for this organization.</p>
+        } @else {
+          <div class="table-scroll">
+            <table class="building-table">
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>Address</th>
+                  <th class="col-num">Score</th>
+                  <th class="col-num">System</th>
+                  <th class="col-num">kWh/yr</th>
+                  <th class="col-num">Rate</th>
+                  <th class="col-num">Est. Savings</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (b of locations; track b._id) {
+                  <tr [class.row-primary]="b.source === 'irs_primary'">
+                    <td>
+                      <span class="source-badge source-badge--{{ b.source }}">
+                        {{ sourceLabel(b.source) }}
+                      </span>
+                    </td>
+                    <td class="addr-cell">
+                      <div>{{ buildingAddress(b) }}</div>
+                      @if (!b.geocoded) {
+                        <div class="sub-note warn">not geocoded</div>
+                      } @else if (b.lat && b.lng) {
+                        <div class="sub-note">{{ b.lat | number:'1.4-4' }}, {{ b.lng | number:'1.4-4' }}</div>
+                      }
+                    </td>
+                    <td class="col-num">
+                      @if (b.solarBenefitScore != null) {
+                        <span class="score-badge" [ngClass]="scoreColor(b.solarBenefitScore)">
+                          {{ b.solarBenefitScore }}
+                        </span>
+                      } @else if (!b.geocoded) {
+                        <span class="muted">—</span>
+                      } @else if (b.sunroof?.noCoverage) {
+                        <span class="muted" matTooltip="No PVWatts coverage at this location">no data</span>
+                      } @else {
+                        <span class="muted">pending</span>
+                      }
+                    </td>
+                    <td class="col-num">
+                      @if (b.sunroof?.panelCapacityWatts) {
+                        {{ (b.sunroof!.panelCapacityWatts! / 1000) | number:'1.0-0' }} kW
+                        @if (b.sunroof?.roofAreaM2) {
+                          <div class="sub-note">{{ b.sunroof!.roofAreaM2! | number:'1.0-0' }} m²</div>
+                        }
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                    <td class="col-num">{{ formatKwh(b.sunroof?.solarPotentialKwhYear) }}</td>
+                    <td class="col-num">
+                      @if (b.sunroof?.ratePerKwh) {
+                        <span [matTooltip]="b.sunroof!.rateSource ?? ''">
+                          ${{ (b.sunroof!.ratePerKwh! * 100) | number:'1.1-1' }}¢
+                        </span>
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                    <td class="col-num savings-cell">{{ formatCurrency(b.estimatedAnnualSavings) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Org details -->
+    <mat-card class="section-card org-details">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>info_outline</mat-icon>
+          Organization Details
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="details-grid">
+          <div class="detail-row">
+            <span class="detail-key">Primary Address</span>
+            <span class="detail-val">{{ buildingAddress({ _id: '', source: 'irs_primary', address: nonprofit.address, geocoded: false, confidence: 1 }) }}</span>
+          </div>
+          @if (nonprofit.taxPeriod) {
+            <div class="detail-row">
+              <span class="detail-key">Latest Tax Period</span>
+              <span class="detail-val">{{ taxPeriodLabel(nonprofit.taxPeriod) }}</span>
+            </div>
+          }
+          @if (nonprofit.latestFilingYear) {
+            <div class="detail-row">
+              <span class="detail-key">Latest 990 Filing</span>
+              <span class="detail-val">{{ nonprofit.latestFilingYear }}</span>
+            </div>
+          }
+          @if (nonprofit.form990EnrichedAt) {
+            <div class="detail-row">
+              <span class="detail-key">990 Enriched</span>
+              <span class="detail-val">{{ nonprofit.form990EnrichedAt | date:'mediumDate' }}</span>
+            </div>
+          }
+          @if (nonprofit.sunroof?.rateSource) {
+            <div class="detail-row">
+              <span class="detail-key">Rate Source</span>
+              <span class="detail-val">{{ nonprofit.sunroof!.rateSource }}</span>
+            </div>
+          }
+          @if (nonprofit.sunroof?.lastUpdated) {
+            <div class="detail-row">
+              <span class="detail-key">Solar Data Updated</span>
+              <span class="detail-val">{{ nonprofit.sunroof!.lastUpdated | date:'mediumDate' }}</span>
+            </div>
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+
+</div>
