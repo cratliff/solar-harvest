@@ -39,10 +39,6 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-    volumes:
-      # Hot-reload: mount source only — node_modules stay in the image layer
-      - ./server/src:/app/src
-      - ./server/scripts:/app/scripts
     environment:
       PORT: 3000
       MONGODB_URI: mongodb://mongo:27017/solar_harvest
@@ -71,9 +67,6 @@ services:
     restart: unless-stopped
     ports:
       - "4200:4200"
-    volumes:
-      # Hot-reload: mount source only — node_modules stay in the image layer
-      - ./client/src:/app/src
     depends_on:
       - server
 
