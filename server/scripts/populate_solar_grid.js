@@ -33,7 +33,7 @@ const STATE_BOUNDS = {
 };
 
 const GRID_STEP       = 0.1;    // degrees
-const REQUEST_DELAY   = 250;    // ms between calls
+const REQUEST_DELAY   = 3700;   // ms between calls — NREL free tier: 1,000 req/hr = one per 3.6s
 const PVWATTS_URL     = 'https://developer.nrel.gov/api/pvwatts/v8.json';
 const MAX_DIST_DEG    = 0.15;   // reject grid cells further than this from US land (sanity)
 

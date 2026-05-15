@@ -7,7 +7,7 @@ const { getRateForLocation } = require('./rateService');
 
 const SOLAR_TTL_DAYS = 180;
 const GEOCODE_BATCH = 100;
-const SOLAR_BATCH = 20;
+const SOLAR_BATCH = 500;
 const REQUEST_DELAY_MS = 200;
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }

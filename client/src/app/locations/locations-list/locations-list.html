@@ -50,12 +50,12 @@
   <mat-progress-bar mode="indeterminate" [style.visibility]="loading ? 'visible' : 'hidden'"></mat-progress-bar>
 
   <div class="table-wrapper mat-elevation-z1">
-    <table mat-table [dataSource]="nonprofits" multiTemplateDataRows>
+    <table mat-table [dataSource]="nonprofits">
 
       <!-- Rank -->
       <ng-container matColumnDef="rank">
         <th mat-header-cell *matHeaderCellDef class="col-rank">#</th>
-        <td mat-cell *matCellDef="let row; let i = dataIndex" class="col-rank rank-cell">
+        <td mat-cell *matCellDef="let row; let i = index" class="col-rank rank-cell">
           {{ globalRank(i) }}
         </td>
       </ng-container>
@@ -64,7 +64,7 @@
       <ng-container matColumnDef="name">
         <th mat-header-cell *matHeaderCellDef>Organization</th>
         <td mat-cell *matCellDef="let row">
-          <a class="org-name org-link" [routerLink]="['/nonprofit', row.ein]" (click)="$event.stopPropagation()">{{ row.name }}</a>
+          <div class="org-name">{{ row.name }}</div>
           <div class="org-ein">EIN {{ row.ein }}</div>
         </td>
       </ng-container>
@@ -114,7 +114,7 @@
               <div class="score-detail">{{ formatKwh(row.sunroof?.solarPotentialKwhYear) }} kWh/yr</div>
             }
           } @else {
-            <span class="score-pending" matTooltip="Run solar enrichment to score this org">—</span>
+            <span class="score-pending" matTooltip="Click to view details">—</span>
           }
         </td>
       </ng-container>
@@ -127,87 +127,10 @@
         </td>
       </ng-container>
 
-      <!-- Expandable detail row — spans all columns -->
-      <ng-container matColumnDef="expandedDetail">
-        <td mat-cell *matCellDef="let row" [attr.colspan]="columns.length" class="detail-cell">
-          @if (expandedEin === row.ein) {
-            <div class="building-panel">
-              @if (loadingBuildings[row.ein]) {
-                <div class="building-loading">
-                  <mat-spinner diameter="24"></mat-spinner>
-                  <span>Loading buildings…</span>
-                </div>
-              } @else if (buildingsByEin[row.ein]) {
-                <table class="building-table">
-                  <thead>
-                    <tr>
-                      <th>Source</th>
-                      <th>Address</th>
-                      <th class="col-number">Score</th>
-                      <th class="col-number">System</th>
-                      <th class="col-number">kWh/yr</th>
-                      <th class="col-number">Rate</th>
-                      <th class="col-number">Est. Savings</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (b of buildingsByEin[row.ein]; track b._id) {
-                      <tr>
-                        <td>
-                          <span class="source-badge source-badge--{{ b.source }}">
-                            {{ sourceLabel(b.source) }}
-                          </span>
-                        </td>
-                        <td class="building-address">{{ buildingAddress(b) }}</td>
-                        <td class="col-number">
-                          @if (b.solarBenefitScore != null) {
-                            <span class="score-badge score-badge--sm" [ngClass]="scoreColor(b.solarBenefitScore)">
-                              {{ b.solarBenefitScore }}
-                            </span>
-                          } @else if (!b.geocoded) {
-                            <span class="score-pending" matTooltip="Address not yet geocoded">not geocoded</span>
-                          } @else if (b.sunroof?.noCoverage) {
-                            <span class="score-pending">no data</span>
-                          } @else {
-                            <span class="score-pending">pending</span>
-                          }
-                        </td>
-                        <td class="col-number">
-                          @if (b.sunroof?.panelCapacityWatts) {
-                            {{ (b.sunroof!.panelCapacityWatts! / 1000) | number:'1.0-0' }} kW
-                            @if (b.sunroof?.roofAreaM2) {
-                              <div class="score-detail">{{ b.sunroof!.roofAreaM2! | number:'1.0-0' }} m²</div>
-                            }
-                          } @else { — }
-                        </td>
-                        <td class="col-number">
-                          {{ formatKwh(b.sunroof?.solarPotentialKwhYear) }}
-                        </td>
-                        <td class="col-number">
-                          @if (b.sunroof?.ratePerKwh) {
-                            <span [matTooltip]="b.sunroof!.rateSource ?? ''">
-                              ${{ (b.sunroof!.ratePerKwh! * 100) | number:'1.1-1' }}¢
-                            </span>
-                          } @else { — }
-                        </td>
-                        <td class="col-number col-savings">
-                          {{ formatCurrency(b.estimatedAnnualSavings) }}
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              }
-            </div>
-          }
-        </td>
-      </ng-container>
-
       <tr mat-header-row *matHeaderRowDef="columns; sticky: true"></tr>
-      <tr mat-row *matRowDef="let row; columns: columns;" class="data-row"
-          [class.row-expanded]="expandedEin === row.ein"
-          (click)="toggleBuildings(row.ein)"></tr>
-      <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="detail-row"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns;"
+          class="data-row clickable-row"
+          (click)="navigateToDetail(row.ein)"></tr>
 
       <tr class="mat-row" *matNoDataRow>
         <td [attr.colspan]="columns.length" class="empty-state">

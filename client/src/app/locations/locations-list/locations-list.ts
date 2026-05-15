@@ -1,19 +1,18 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { ApiService } from '../../services/api.service';
-import { BuildingLocation, Nonprofit, NTEE_LABELS, SOURCE_LABELS } from '../../models/location.model';
+import { Nonprofit, NTEE_LABELS, SOURCE_LABELS } from '../../models/location.model';
 
 @Component({
   selector: 'app-locations-list',
@@ -21,13 +20,14 @@ import { BuildingLocation, Nonprofit, NTEE_LABELS, SOURCE_LABELS } from '../../m
   imports: [
     CommonModule, RouterLink, ReactiveFormsModule,
     MatSelectModule, MatFormFieldModule, MatTableModule, MatPaginatorModule,
-    MatProgressBarModule, MatProgressSpinnerModule, MatIconModule, MatButtonModule, MatTooltipModule,
+    MatProgressBarModule, MatIconModule, MatButtonModule, MatTooltipModule,
   ],
   templateUrl: './locations-list.html',
   styleUrl: './locations-list.scss',
 })
 export class LocationsListComponent implements OnInit {
-  private api = inject(ApiService);
+  private api    = inject(ApiService);
+  private router = inject(Router);
 
   stateCtrl = new FormControl<string>('');
   cityCtrl  = new FormControl<string>({ value: '', disabled: true });
@@ -40,10 +40,6 @@ export class LocationsListComponent implements OnInit {
   pageSize     = 25;
   pageIndex    = 0;
   loading      = false;
-
-  expandedEin: string | null = null;
-  buildingsByEin: Record<string, BuildingLocation[]> = {};
-  loadingBuildings: Record<string, boolean> = {};
 
   readonly columns = ['rank', 'name', 'address', 'ntee', 'assets', 'score', 'savings'];
   readonly sourceLabels = SOURCE_LABELS;
@@ -73,7 +69,6 @@ export class LocationsListComponent implements OnInit {
 
   load() {
     this.loading = true;
-    this.expandedEin = null;
     this.api.getNonprofits({
       state: this.stateCtrl.value || undefined,
       city:  this.cityCtrl.value  || undefined,
@@ -101,22 +96,8 @@ export class LocationsListComponent implements OnInit {
     this.pageIndex = 0;
   }
 
-  toggleBuildings(ein: string) {
-    if (this.expandedEin === ein) {
-      this.expandedEin = null;
-      return;
-    }
-    this.expandedEin = ein;
-    if (!this.buildingsByEin[ein]) {
-      this.loadingBuildings[ein] = true;
-      this.api.getNonprofitLocations(ein).subscribe({
-        next: locs => {
-          this.buildingsByEin[ein] = locs;
-          this.loadingBuildings[ein] = false;
-        },
-        error: () => { this.loadingBuildings[ein] = false; },
-      });
-    }
+  navigateToDetail(ein: string) {
+    this.router.navigate(['/nonprofit', ein]);
   }
 
   globalRank(i: number): number {
@@ -125,17 +106,12 @@ export class LocationsListComponent implements OnInit {
 
   nteeLabel(code: string | undefined): string {
     if (!code) return '—';
-    const letter = code.charAt(0).toUpperCase();
-    return NTEE_LABELS[letter] ?? code;
-  }
-
-  sourceLabel(source: string): string {
-    return SOURCE_LABELS[source as keyof typeof SOURCE_LABELS] ?? source;
+    return NTEE_LABELS[code.charAt(0).toUpperCase()] ?? code;
   }
 
   scoreColor(score: number | null | undefined): string {
     if (score == null) return 'score-none';
-    if (score >= 75) return 'score-high';
+    if (score >= 70) return 'score-high';
     if (score >= 40) return 'score-mid';
     return 'score-low';
   }
@@ -150,12 +126,5 @@ export class LocationsListComponent implements OnInit {
   formatKwh(val: number | null | undefined): string {
     if (val == null || !isFinite(val)) return '—';
     return val.toLocaleString('en-US', { maximumFractionDigits: 0 });
-  }
-
-  buildingAddress(b: BuildingLocation): string {
-    const a = b.address;
-    if (!a) return '—';
-    const parts = [a.street, [a.city, a.state].filter(Boolean).join(', ')].filter(Boolean);
-    return parts.join(' · ') || a.raw || '—';
   }
 }
